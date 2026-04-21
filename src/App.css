@@ -114,7 +114,8 @@ body {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 420px;
+  max-height: 460px;
+  margin: 0 auto;
 }
 
 /* ---------- Masthead (compact hero, absorbs KPI) --------------------- */
