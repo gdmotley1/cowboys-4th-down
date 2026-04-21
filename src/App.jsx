@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import StatusBar from "./components/StatusBar.jsx";
+import Masthead from "./components/Masthead.jsx";
 import KpiHeadline from "./components/KpiHeadline.jsx";
 import FootballField from "./components/FootballField.jsx";
 import DecisionGrid from "./components/DecisionGrid.jsx";
@@ -33,7 +33,6 @@ export default function App() {
   const handleCellClick = (cellKey, playsInCell) => {
     setSelectedCellKey(cellKey);
     if (!playsInCell.length) return;
-    // Prefer the biggest miss in the cell; fall back to biggest |go_boost|
     const misses = playsInCell.filter(
       (p) => p.correct === false && p.go_boost != null
     );
@@ -45,79 +44,86 @@ export default function App() {
 
   return (
     <div className="app">
-      <StatusBar summary={summary} />
+      <Masthead summary={summary} />
 
-      <div className="app-body">
+      <main className="app-body">
         <KpiHeadline summary={summary} />
 
-        {/* WORKSPACE — field + decision grid side by side */}
         <div className="workspace">
-          <div className="panel">
-            <span className="corner-bl" />
-            <span className="corner-br" />
-            <div className="panel-head">
-              <span className="panel-id">MAP·01 · DECISION LANDSCAPE</span>
-              <div className="filters">
-                <button
-                  className={`filter-btn${filter === "all" ? " active" : ""}`}
-                  onClick={() => setFilter("all")}
-                  type="button"
-                >
-                  ALL<span className="n">{counts.all}</span>
-                </button>
-                <button
-                  className={`filter-btn${filter === "misses" ? " active" : ""}`}
-                  onClick={() => setFilter("misses")}
-                  type="button"
-                >
-                  MISSES<span className="n">{counts.misses}</span>
-                </button>
-                <button
-                  className={`filter-btn${filter === "correct" ? " active" : ""}`}
-                  onClick={() => setFilter("correct")}
-                  type="button"
-                >
-                  MATCHED<span className="n">{counts.correct}</span>
-                </button>
+          <div className="workspace-left">
+            <div className="panel">
+              <div className="panel-head">
+                <h3>Decision landscape</h3>
+                <div className="filters">
+                  <button
+                    className={`filter-btn${filter === "all" ? " active" : ""}`}
+                    onClick={() => setFilter("all")}
+                    type="button"
+                  >
+                    All<span className="n num">{counts.all}</span>
+                  </button>
+                  <button
+                    className={`filter-btn${filter === "misses" ? " active" : ""}`}
+                    onClick={() => setFilter("misses")}
+                    type="button"
+                  >
+                    Misses<span className="n num">{counts.misses}</span>
+                  </button>
+                  <button
+                    className={`filter-btn${filter === "correct" ? " active" : ""}`}
+                    onClick={() => setFilter("correct")}
+                    type="button"
+                  >
+                    Matched<span className="n num">{counts.correct}</span>
+                  </button>
+                </div>
               </div>
-            </div>
-            <FootballField
-              plays={playsData}
-              filter={filter}
-              selectedPlayId={selectedPlayId}
-              onSelect={handlePlayClick}
-            />
-          </div>
-
-          <div className="panel">
-            <span className="corner-bl" />
-            <span className="corner-br" />
-            <div className="panel-head">
-              <span className="panel-id">GRID·02 · COST BY SITUATION</span>
-              <span>DIST × FIELD ZONE · WP FORFEITED</span>
-            </div>
-            <div className="panel-body">
-              <DecisionGrid
+              <FootballField
                 plays={playsData}
-                selectedCellKey={selectedCellKey}
-                onCellSelect={handleCellClick}
+                filter={filter}
+                selectedPlayId={selectedPlayId}
+                onSelect={handlePlayClick}
               />
             </div>
-          </div>
-        </div>
 
-        {/* Detail panel spans full width */}
-        <DetailPanel play={selectedPlay} />
-      </div>
+            <div className="panel">
+              <div className="panel-head">
+                <h3>Cost by situation</h3>
+                <span className="muted">
+                  Distance × field zone — brighter = more WP surrendered
+                </span>
+              </div>
+              <div className="panel-body">
+                <DecisionGrid
+                  plays={playsData}
+                  selectedCellKey={selectedCellKey}
+                  onCellSelect={handleCellClick}
+                />
+              </div>
+            </div>
+          </div>
+
+          <aside className="workspace-right">
+            <DetailPanel
+              play={selectedPlay}
+              allPlays={playsData}
+              onSelect={handlePlayClick}
+            />
+          </aside>
+        </div>
+      </main>
 
       <footer className="foot">
-        <span>DATA · nflfastR · 2025 REG · 17 GP · 113 PLAYS · 107 SCORED</span>
         <span>
-          MODEL · nfl4th v1.0.7 · Ben Baldwin · <a href="https://rbsdm.com/stats/fourth_downs/" target="_blank" rel="noreferrer">rbsdm.com</a>
+          <strong>Data</strong> nflfastR · 2025 regular season · 17 GP · 113 plays · 107 scored
         </span>
         <span>
-          PREPARED BY GRANT MOTLEY ·
-          <a href="https://github.com/gdmotley1/cowboys-4th-down" target="_blank" rel="noreferrer"> GITHUB </a>
+          <strong>Model</strong> nfl4th v1.0.7 (Ben Baldwin) ·{" "}
+          <a href="https://rbsdm.com/stats/fourth_downs/" target="_blank" rel="noreferrer">rbsdm.com</a>
+        </span>
+        <span>
+          Prepared by Grant Motley ·{" "}
+          <a href="https://github.com/gdmotley1/cowboys-4th-down" target="_blank" rel="noreferrer">github</a>
         </span>
       </footer>
     </div>

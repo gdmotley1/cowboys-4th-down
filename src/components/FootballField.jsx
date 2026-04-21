@@ -1,106 +1,71 @@
 import { useMemo, useState } from "react";
 
-/**
- * Hand-drawn SVG field, oriented horizontally.
- *   Own end zone  ←  (left)                  (right)  →  Opponent end zone
- *
- * Coordinate mapping:
- *   viewBox = 0 0 1200 540
- *   x = 100 + (100 - yardline_100) * 10   (playing field 100..1100, end zones 0..100 and 1100..1200)
- *   y encodes distance-to-go (1 = bottom, 22 = top): y = 60 + (22 - ydstogo) * 20
- *
- * This keeps the familiar field metaphor while surfacing the second decision
- * axis (distance) vertically.  A small y-axis gauge outside the pitch labels it.
- */
-
 const VB_W = 1200;
 const VB_H = 540;
 const LEFT_EZ = 100;
 const RIGHT_EZ_START = 1100;
-
-// Tick for each 10-yard line (x-coord, number label on the field)
 const YARD_LINES = [10, 20, 30, 40, 50, 40, 30, 20, 10];
 
-function xFromYardline(yl100) {
-  return 100 + (100 - yl100) * 10;
+function xFromYardline(yl) { return 100 + (100 - yl) * 10; }
+function yFromDistance(d) {
+  const c = Math.max(1, Math.min(22, d));
+  return 480 - (c - 1) * (420 / 21);
 }
+function isoKey(p) { return `${p.game_id}::${p.play_id}`; }
 
-function yFromDistance(ydstogo) {
-  // 1 yard → y = 480 (bottom), 22 yards → y = 60 (top)
-  const clamped = Math.max(1, Math.min(22, ydstogo));
-  return 480 - (clamped - 1) * (420 / 21);
-}
-
-function isoPlayKey(p) { return `${p.game_id}::${p.play_id}`; }
-
-function radiusFromStakes(goBoost) {
-  const m = Math.abs(goBoost ?? 0);
-  if (m >= 3) return 11;
-  if (m >= 2) return 9;
-  if (m >= 1) return 7.5;
-  return 6;
+function radiusFromStakes(gb) {
+  const m = Math.abs(gb ?? 0);
+  if (m >= 3) return 10.5;
+  if (m >= 2) return 8.5;
+  if (m >= 1) return 7;
+  return 5.5;
 }
 
 function colorFor(play, filter) {
-  if (play.correct === null) {
-    return { fill: "#556069", stroke: "#7d8693", dim: true };
-  }
+  if (play.correct === null) return { fill: "#556069", stroke: "#6b7485", dim: true };
   const isMiss = play.correct === false;
-  const matchesFilter =
-    filter === "all" ||
+  const matches = filter === "all" ||
     (filter === "misses" && isMiss) ||
     (filter === "correct" && !isMiss);
-
-  if (!matchesFilter) {
-    return { fill: "#2e3542", stroke: "#3a414f", dim: true };
-  }
-  if (isMiss) {
-    return { fill: "#ff9f0a", stroke: "#ffbe4a", dim: false, glow: true };
-  }
-  return { fill: "#d0d6dc", stroke: "#ffffff", dim: false };
+  if (!matches) return { fill: "#2c3344", stroke: "#404758", dim: true };
+  if (isMiss) return { fill: "#ff8847", stroke: "#ffb380", alert: true };
+  return { fill: "#d0d6dc", stroke: "#ffffff" };
 }
 
 function jitter(playId) {
-  // Stable pseudo-random small offset so overlapping plays don't fully stack
   const s = String(playId);
   let h = 0;
   for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i);
-  const a = (h & 0xff) / 255;
-  const b = ((h >> 8) & 0xff) / 255;
-  return {
-    dx: (a - 0.5) * 7,
-    dy: (b - 0.5) * 7,
-  };
+  return { dx: (((h & 0xff) / 255) - 0.5) * 6, dy: (((h >> 8) & 0xff) / 255 - 0.5) * 6 };
 }
 
-export default function FootballField({
-  plays,
-  filter,
-  selectedPlayId,
-  onSelect,
-}) {
+const TEAM_SHORT = {
+  ARI: "Cardinals", ATL: "Falcons", BAL: "Ravens", BUF: "Bills",
+  CAR: "Panthers", CHI: "Bears", CIN: "Bengals", CLE: "Browns",
+  DAL: "Cowboys", DEN: "Broncos", DET: "Lions", GB: "Packers",
+  HOU: "Texans", IND: "Colts", JAX: "Jaguars", KC: "Chiefs",
+  LA: "Rams", LAC: "Chargers", LV: "Raiders", MIA: "Dolphins",
+  MIN: "Vikings", NE: "Patriots", NO: "Saints", NYG: "Giants",
+  NYJ: "Jets", PHI: "Eagles", PIT: "Steelers", SEA: "Seahawks",
+  SF: "49ers", TB: "Buccaneers", TEN: "Titans", WAS: "Commanders",
+};
+
+export default function FootballField({ plays, filter, selectedPlayId, onSelect }) {
   const [hover, setHover] = useState(null);
 
-  // Pre-compute marker positions + styles
-  const markers = useMemo(() => {
-    return plays.map((p) => {
-      const baseX = xFromYardline(p.yardline_100);
-      const baseY = yFromDistance(p.ydstogo);
-      const j = jitter(p.play_id);
-      const c = colorFor(p, filter);
-      const r = radiusFromStakes(p.go_boost);
-      const isSelected = p.play_id === selectedPlayId;
-      return {
-        key: isoPlayKey(p),
-        p,
-        cx: baseX + j.dx,
-        cy: baseY + j.dy,
-        r,
-        ...c,
-        isSelected,
-      };
-    });
-  }, [plays, filter, selectedPlayId]);
+  const markers = useMemo(() => plays.map((p) => {
+    const bx = xFromYardline(p.yardline_100);
+    const by = yFromDistance(p.ydstogo);
+    const j = jitter(p.play_id);
+    const c = colorFor(p, filter);
+    const r = radiusFromStakes(p.go_boost);
+    return {
+      key: isoKey(p), p,
+      cx: bx + j.dx, cy: by + j.dy, r,
+      ...c,
+      isSelected: p.play_id === selectedPlayId,
+    };
+  }), [plays, filter, selectedPlayId]);
 
   return (
     <div className="field-wrap">
@@ -113,26 +78,27 @@ export default function FootballField({
       >
         <defs>
           <linearGradient id="turf" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#0c1222" />
-            <stop offset="100%" stopColor="#080d18" />
+            <stop offset="0%" stopColor="#0d1426" />
+            <stop offset="50%" stopColor="#0a1120" />
+            <stop offset="100%" stopColor="#080e1c" />
           </linearGradient>
           <linearGradient id="ownEZ" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor="#001c4d" />
+            <stop offset="0%" stopColor="#001437" />
             <stop offset="100%" stopColor="#003594" />
           </linearGradient>
           <linearGradient id="oppEZ" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor="#1a2030" />
-            <stop offset="100%" stopColor="#0f1522" />
+            <stop offset="0%" stopColor="#1a1f2e" />
+            <stop offset="100%" stopColor="#121726" />
           </linearGradient>
-          <filter id="alertGlow" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="4" result="b" />
+          <filter id="alertGlow" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="3.5" result="b" />
             <feMerge>
               <feMergeNode in="b" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <filter id="selectGlow" x="-80%" y="-80%" width="260%" height="260%">
-            <feGaussianBlur stdDeviation="6" result="b" />
+          <filter id="selectGlow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="7" result="b" />
             <feMerge>
               <feMergeNode in="b" />
               <feMergeNode in="SourceGraphic" />
@@ -142,37 +108,46 @@ export default function FootballField({
 
         {/* Turf */}
         <rect x={LEFT_EZ} y="0" width={RIGHT_EZ_START - LEFT_EZ} height={VB_H} fill="url(#turf)" />
-        {/* End zones */}
         <rect x="0" y="0" width={LEFT_EZ} height={VB_H} fill="url(#ownEZ)" />
         <rect x={RIGHT_EZ_START} y="0" width={VB_W - RIGHT_EZ_START} height={VB_H} fill="url(#oppEZ)" />
 
-        {/* End zone labels */}
+        {/* End-zone labels — quiet, just team abbreviations */}
         <text
           x={LEFT_EZ / 2} y={VB_H / 2 + 4}
           textAnchor="middle"
-          fill="rgba(208, 214, 220, 0.6)"
-          fontFamily="B612 Mono, monospace"
-          fontSize="22"
-          fontWeight="700"
+          fill="rgba(255,255,255,0.5)"
+          fontFamily="Fraunces, serif"
+          fontSize="20"
+          fontWeight="500"
           transform={`rotate(-90 ${LEFT_EZ / 2} ${VB_H / 2})`}
-          letterSpacing="6"
+          style={{ fontVariationSettings: '"opsz" 144, "SOFT" 40' }}
+          letterSpacing="4"
         >
-          DALLAS
+          DAL
         </text>
         <text
           x={RIGHT_EZ_START + (VB_W - RIGHT_EZ_START) / 2} y={VB_H / 2 + 4}
           textAnchor="middle"
-          fill="rgba(134, 147, 151, 0.45)"
-          fontFamily="B612 Mono, monospace"
-          fontSize="16"
-          fontWeight="700"
+          fill="rgba(168,176,191,0.4)"
+          fontFamily="Fraunces, serif"
+          fontSize="14"
+          fontWeight="500"
           transform={`rotate(90 ${RIGHT_EZ_START + (VB_W - RIGHT_EZ_START) / 2} ${VB_H / 2})`}
-          letterSpacing="6"
+          letterSpacing="3"
         >
-          OPP EZ
+          OPP
         </text>
 
-        {/* Yard lines — every 10 */}
+        {/* 5-yard lines (dashed, quiet) */}
+        {[5, 15, 25, 35, 45, 55, 65, 75, 85, 95].map((y, i) => {
+          const x = LEFT_EZ + y * 10;
+          return (
+            <line key={`yl5-${i}`} x1={x} y1="0" x2={x} y2={VB_H}
+              stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="2 6" />
+          );
+        })}
+
+        {/* 10-yard lines + painted numbers */}
         {YARD_LINES.map((ln, i) => {
           const x = LEFT_EZ + (i + 1) * 100;
           const isMid = ln === 50;
@@ -180,29 +155,29 @@ export default function FootballField({
             <g key={`yl${i}`}>
               <line
                 x1={x} y1="0" x2={x} y2={VB_H}
-                stroke={isMid ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.14)"}
+                stroke={isMid ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.12)"}
                 strokeWidth={isMid ? 1.5 : 1}
               />
-              {/* Yard numbers, top */}
               <text
-                x={x - 14} y="48"
-                fill="rgba(255,255,255,0.22)"
-                fontFamily="B612 Mono, monospace"
-                fontSize="28"
-                fontWeight="700"
-                letterSpacing="2"
+                x={x} y="52" textAnchor="middle"
+                fill="rgba(255,255,255,0.18)"
+                fontFamily="Fraunces, serif"
+                fontSize="26"
+                fontWeight="500"
+                style={{ fontVariationSettings: '"opsz" 144, "SOFT" 40' }}
+                letterSpacing="1"
               >
                 {ln}
               </text>
-              {/* Yard numbers, bottom (rotated 180) */}
               <text
-                x={x + 14} y={VB_H - 28}
-                fill="rgba(255,255,255,0.22)"
-                fontFamily="B612 Mono, monospace"
-                fontSize="28"
-                fontWeight="700"
-                letterSpacing="2"
-                transform={`rotate(180 ${x} ${VB_H - 38})`}
+                x={x} y={VB_H - 30} textAnchor="middle"
+                fill="rgba(255,255,255,0.18)"
+                fontFamily="Fraunces, serif"
+                fontSize="26"
+                fontWeight="500"
+                style={{ fontVariationSettings: '"opsz" 144, "SOFT" 40' }}
+                letterSpacing="1"
+                transform={`rotate(180 ${x} ${VB_H - 40})`}
               >
                 {ln}
               </text>
@@ -210,55 +185,27 @@ export default function FootballField({
           );
         })}
 
-        {/* 5-yard dashed lines */}
-        {[5, 15, 25, 35, 45, 55, 65, 75, 85, 95].map((y, i) => {
-          const x = LEFT_EZ + y * 10;
-          return (
-            <line
-              key={`yl5-${i}`}
-              x1={x} y1="0" x2={x} y2={VB_H}
-              stroke="rgba(255,255,255,0.06)"
-              strokeWidth="1"
-              strokeDasharray="2 5"
-            />
-          );
-        })}
-
-        {/* Hash marks along top and bottom third */}
+        {/* Hash marks */}
         {Array.from({ length: 100 }).map((_, i) => {
           const x = LEFT_EZ + i * 10 + 10;
           return (
             <g key={`hm-${i}`}>
-              <line x1={x} y1="178" x2={x} y2="186" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
-              <line x1={x} y1="354" x2={x} y2="362" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+              <line x1={x} y1="180" x2={x} y2="188" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+              <line x1={x} y1="352" x2={x} y2="360" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
             </g>
           );
         })}
 
-        {/* Goal lines — slightly brighter */}
-        <line x1={LEFT_EZ} y1="0" x2={LEFT_EZ} y2={VB_H} stroke="rgba(255,255,255,0.42)" strokeWidth="2" />
-        <line x1={RIGHT_EZ_START} y1="0" x2={RIGHT_EZ_START} y2={VB_H} stroke="rgba(255,255,255,0.42)" strokeWidth="2" />
+        {/* Goal lines */}
+        <line x1={LEFT_EZ} y1="0" x2={LEFT_EZ} y2={VB_H} stroke="rgba(255,255,255,0.4)" strokeWidth="2" />
+        <line x1={RIGHT_EZ_START} y1="0" x2={RIGHT_EZ_START} y2={VB_H} stroke="rgba(255,255,255,0.4)" strokeWidth="2" />
 
-        {/* Distance gauge on the left edge */}
-        <g>
-          <text
-            x="4" y={VB_H / 2 + 4}
-            fill="rgba(255, 159, 10, 0.45)"
-            fontFamily="B612 Mono, monospace"
-            fontSize="10"
-            fontWeight="400"
-            letterSpacing="3"
-            transform={`rotate(-90 20 ${VB_H / 2})`}
-            textAnchor="middle"
-          >
-            ↑ MORE DISTANCE
-          </text>
-        </g>
-
-        {/* Markers — dim layer first, then bright layer on top (so alerts sit above) */}
+        {/* Markers — alerts/selected drawn on top */}
         {markers
           .slice()
-          .sort((a, b) => Number(a.glow || a.isSelected) - Number(b.glow || b.isSelected))
+          .sort((a, b) =>
+            (Number(a.alert || a.isSelected)) - (Number(b.alert || b.isSelected))
+          )
           .map((m) => (
             <g
               key={m.key}
@@ -266,10 +213,14 @@ export default function FootballField({
               onMouseLeave={() => setHover((h) => (h === m.p ? null : h))}
               onClick={() => onSelect && onSelect(m.p)}
               style={{ cursor: "pointer" }}
-              filter={m.isSelected ? "url(#selectGlow)" : m.glow ? "url(#alertGlow)" : undefined}
+              filter={m.isSelected ? "url(#selectGlow)" : m.alert ? "url(#alertGlow)" : undefined}
             >
               {m.isSelected && (
-                <circle cx={m.cx} cy={m.cy} r={m.r + 6} fill="none" stroke="#d4a443" strokeWidth="1.5" opacity="0.85" />
+                <circle cx={m.cx} cy={m.cy} r={m.r + 6}
+                  fill="none"
+                  stroke="#f5b041"
+                  strokeWidth="1.5"
+                  opacity="0.9" />
               )}
               <circle
                 cx={m.cx}
@@ -278,63 +229,64 @@ export default function FootballField({
                 fill={m.fill}
                 stroke={m.stroke}
                 strokeWidth="1"
-                opacity={m.dim ? 0.5 : 0.95}
+                opacity={m.dim ? 0.45 : 0.95}
               />
             </g>
           ))}
 
-        {/* Hover tooltip (SVG foreignObject for simple HTML) */}
+        {/* Hover tooltip — softer than the tactical version */}
         {hover && (() => {
           const x = xFromYardline(hover.yardline_100);
           const y = yFromDistance(hover.ydstogo);
-          const boxW = 220;
-          const boxH = 64;
-          const boxX = Math.min(VB_W - boxW - 8, Math.max(8, x + 16));
-          const boxY = Math.min(VB_H - boxH - 8, Math.max(8, y - boxH - 14));
+          const boxW = 240;
+          const boxH = 62;
+          const boxX = Math.min(VB_W - boxW - 8, Math.max(8, x + 14));
+          const boxY = Math.min(VB_H - boxH - 8, Math.max(8, y - boxH - 12));
+          const opp = TEAM_SHORT[hover.defteam] || hover.defteam;
           const fp = hover.yardline_100 < 50
-            ? `OPP ${hover.yardline_100}`
+            ? `opp ${hover.yardline_100}`
             : hover.yardline_100 > 50
-              ? `OWN ${100 - hover.yardline_100}`
-              : "MID 50";
+              ? `own ${100 - hover.yardline_100}`
+              : "midfield";
           const score = hover.score_differential === 0
-            ? "TIED"
-            : hover.score_differential > 0
-              ? `+${hover.score_differential}`
-              : `${hover.score_differential}`;
-          const gb = hover.go_boost;
-          const gbTxt = gb != null ? `${gb >= 0 ? "+" : ""}${gb.toFixed(2)}` : "—";
+            ? "tied"
+            : hover.score_differential > 0 ? `up ${hover.score_differential}` : `down ${-hover.score_differential}`;
+          const isMiss = hover.correct === false;
+          const accent = isMiss ? "#ff8847" : "#d0d6dc";
           return (
             <g pointerEvents="none">
               <rect
-                x={boxX} y={boxY}
-                width={boxW} height={boxH}
-                rx="1" ry="1"
-                fill="rgba(4, 8, 18, 0.95)"
-                stroke="rgba(255, 159, 10, 0.55)"
+                x={boxX} y={boxY} width={boxW} height={boxH}
+                rx="8" ry="8"
+                fill="rgba(10, 14, 26, 0.96)"
+                stroke={accent}
                 strokeWidth="1"
+                opacity="0.98"
               />
-              <text x={boxX + 12} y={boxY + 18}
-                fill="#d0d6dc"
-                fontFamily="B612 Mono, monospace"
-                fontSize="10"
-                fontWeight="700"
-                letterSpacing="2">
-                WK·{String(hover.week).padStart(2, "0")}  ·  {hover.posteam === hover.home_team ? `vs ${hover.defteam}` : `@ ${hover.defteam}`}
+              <text x={boxX + 14} y={boxY + 22}
+                fill="#e6ebf2"
+                fontFamily="Fraunces, serif"
+                fontSize="14"
+                fontWeight="500"
+                style={{ fontVariationSettings: '"opsz" 36, "SOFT" 40' }}>
+                Week {hover.week} {hover.posteam === hover.home_team ? "vs" : "at"} {opp}
               </text>
-              <text x={boxX + 12} y={boxY + 36}
-                fill="#8b94a4"
-                fontFamily="B612 Mono, monospace"
-                fontSize="9.5"
-                letterSpacing="1.5">
-                Q{hover.qtr}  DIST·{hover.ydstogo}  YL·{fp}  Δ·{score}
+              <text x={boxX + 14} y={boxY + 39}
+                fill="#a8b0bf"
+                fontFamily="Manrope, sans-serif"
+                fontSize="11.5"
+                fontWeight="500">
+                Q{hover.qtr} · 4th &amp; {hover.ydstogo} from {fp} · {score}
               </text>
-              <text x={boxX + 12} y={boxY + 52}
-                fill={gb != null && gb > 0 && hover.decision !== "went_for_it" ? "#ff9f0a" : "#d0d6dc"}
-                fontFamily="B612 Mono, monospace"
-                fontSize="9.5"
+              <text x={boxX + 14} y={boxY + 54}
+                fill={accent}
+                fontFamily="Manrope, sans-serif"
+                fontSize="11"
                 fontWeight="700"
-                letterSpacing="1.5">
-                GO-BOOST {gbTxt} WP  ·  CLICK TO DRILL
+                letterSpacing="0.05em">
+                {hover.go_boost != null
+                  ? `${hover.go_boost >= 0 ? "+" : ""}${hover.go_boost.toFixed(2)} WP · click to drill`
+                  : "unscored — click to view"}
               </text>
             </g>
           );
@@ -342,10 +294,13 @@ export default function FootballField({
       </svg>
 
       <div className="field-legend">
-        <span><span className="swatch alert" />Missed opportunity</span>
-        <span><span className="swatch silver" />Matched model</span>
-        <span><span className="swatch dim" />Not scored</span>
-        <span style={{ marginLeft: "auto" }}>Marker size = stakes · Click any play →</span>
+        <span className="lg-item"><span className="lg-dot alert" />Missed opportunity</span>
+        <span className="lg-item"><span className="lg-dot silver" />Matched model</span>
+        <span className="lg-item"><span className="lg-dot dim" />Unscored</span>
+        <span className="spacer" />
+        <span className="lg-item" style={{ color: "var(--text-3)" }}>
+          Marker size = stakes · Hover for detail, click to drill
+        </span>
       </div>
     </div>
   );
