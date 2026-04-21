@@ -1,0 +1,19 @@
+{
+  "total_decisions": 107,
+  "correct_count": 75,
+  "incorrect_count": 32,
+  "correct_pct": 0.7009,
+  "wp_left_on_table": 37.02,
+  "went_for_it_count": 34,
+  "went_for_it_converted": 22,
+  "went_for_it_failed": 12,
+  "punted_count": 41,
+  "field_goal_count": 37,
+  "total_plays": 113,
+  "unscorable_plays": 6,
+  "season": 2025,
+  "season_type": "REG",
+  "team": "DAL",
+  "source": "nflfastR pbp + nfl4th v1.0.7",
+  "notes": "go_boost units are win-probability percentage points, per the nfl4th model / rbsdm.com. Unscorable plays are late-clock situations (<=15s) or qb_kneels, which the model does not evaluate as strategic decisions."
+}

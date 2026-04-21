@@ -1,0 +1,21 @@
+node_modules
+dist
+.vite
+
+# Python
+__pycache__/
+*.pyc
+
+# R / nfl4th scratch space — data is regenerated via scripts
+nfl4th/
+models/
+data/dal_4th_raw.csv
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor / local
+.vscode
+.idea
+*.log
