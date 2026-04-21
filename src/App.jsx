@@ -8,14 +8,15 @@ import playsData from "./data/fourth_down_data.json";
 import summary from "./data/summary_stats.json";
 
 export default function App() {
-  const [filter, setFilter] = useState("all");
+  // Field starts focused on misses — that IS the story.
+  const [filter, setFilter] = useState("misses");
   const [selectedPlayId, setSelectedPlayId] = useState(null);
   const [selectedCellKey, setSelectedCellKey] = useState(null);
 
   const counts = useMemo(() => ({
     all: playsData.length,
     misses: playsData.filter((p) => p.correct === false).length,
-    correct: playsData.filter((p) => p.correct === true).length,
+    matched: playsData.filter((p) => p.correct === true).length,
   }), []);
 
   const selectedPlay = useMemo(
@@ -27,14 +28,6 @@ export default function App() {
     if (!play) return setSelectedPlayId(null);
     setSelectedPlayId((curr) => (curr === play.play_id ? null : play.play_id));
     setSelectedCellKey(null);
-    // Smoothly reveal the detail panel below the field
-    requestAnimationFrame(() => {
-      const el = document.getElementById("detail");
-      if (el) {
-        const y = el.getBoundingClientRect().top + window.scrollY - 80;
-        window.scrollTo({ top: y, behavior: "smooth" });
-      }
-    });
   };
 
   const handleCellClick = (cellKey, playsInCell) => {
@@ -54,24 +47,30 @@ export default function App() {
       <Masthead summary={summary} />
 
       <main className="app-body">
-        {/* HERO: football field, full-width */}
-        <section className="panel field-panel">
-          <div className="panel-head">
-            <div>
-              <h3>Decision landscape · Cowboys 2025</h3>
-              <div className="panel-sub">
-                Every 4th-down call the team faced, plotted on the field. Larger
-                marker = higher stakes. Amber = model disagreed.
-              </div>
+        {/* FIELD — floating, no panel box, just a header strip + SVG */}
+        <section className="field-section">
+          <div className="field-header">
+            <div className="field-title-group">
+              <h2 className="field-title">Decision landscape</h2>
+              <p className="field-sub">
+                {filter === "misses" && (
+                  <>
+                    <strong className="alert-text num">{counts.misses}</strong> missed opportunities, plotted by yards-to-go and field position. Larger marker = higher stakes.
+                  </>
+                )}
+                {filter === "matched" && (
+                  <>
+                    <strong className="num">{counts.matched}</strong> calls that matched the model, for context.
+                  </>
+                )}
+                {filter === "all" && (
+                  <>
+                    All <strong className="num">{counts.all}</strong> decisions — misses in amber, matched calls in silver.
+                  </>
+                )}
+              </p>
             </div>
             <div className="filters">
-              <button
-                className={`filter-btn${filter === "all" ? " active" : ""}`}
-                onClick={() => setFilter("all")}
-                type="button"
-              >
-                All<span className="n num">{counts.all}</span>
-              </button>
               <button
                 className={`filter-btn${filter === "misses" ? " active" : ""}`}
                 onClick={() => setFilter("misses")}
@@ -80,14 +79,22 @@ export default function App() {
                 Misses<span className="n num">{counts.misses}</span>
               </button>
               <button
-                className={`filter-btn${filter === "correct" ? " active" : ""}`}
-                onClick={() => setFilter("correct")}
+                className={`filter-btn${filter === "matched" ? " active" : ""}`}
+                onClick={() => setFilter("matched")}
                 type="button"
               >
-                Matched<span className="n num">{counts.correct}</span>
+                Matched<span className="n num">{counts.matched}</span>
+              </button>
+              <button
+                className={`filter-btn${filter === "all" ? " active" : ""}`}
+                onClick={() => setFilter("all")}
+                type="button"
+              >
+                All<span className="n num">{counts.all}</span>
               </button>
             </div>
           </div>
+
           <FootballField
             plays={playsData}
             filter={filter}
@@ -96,16 +103,12 @@ export default function App() {
           />
         </section>
 
-        {/* Detail panel — full width, directly below field */}
-        <div id="detail">
-          <DetailPanel
-            play={selectedPlay}
-            allPlays={playsData}
-            onSelect={handlePlayClick}
-          />
-        </div>
+        <DetailPanel
+          play={selectedPlay}
+          allPlays={playsData}
+          onSelect={handlePlayClick}
+        />
 
-        {/* Decision grid — dig deeper */}
         <section className="panel">
           <div className="panel-head">
             <div>

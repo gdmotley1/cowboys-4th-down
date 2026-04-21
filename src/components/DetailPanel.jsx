@@ -49,26 +49,17 @@ function EmptyState({ plays, onSelect }) {
       .filter((p) => p.correct === false && p.go_boost != null)
       .slice()
       .sort((a, b) => Math.abs(b.go_boost) - Math.abs(a.go_boost))
-      .slice(0, 6);
+      .slice(0, 4);
   }, [plays]);
 
   return (
     <div className="dp-empty">
       <div className="dp-empty-head">
         <div>
-          <div className="dp-kicker">The six worst calls of the season</div>
+          <div className="dp-kicker">The worst calls of the season</div>
           <p className="dp-empty-sub">
-            Dallas's {plays.filter((p) => p.correct === false).length} missed
-            opportunities surrendered{" "}
-            <strong className="num">
-              {plays
-                .filter((p) => p.correct === false && p.go_boost != null)
-                .reduce((s, p) => s + Math.abs(p.go_boost), 0)
-                .toFixed(1)}{" "}
-              WP points
-            </strong>
-            . The biggest six are below. Click any card — or any play on the
-            field above — for the full three-option breakdown.
+            Click any miss on the field above, or one of the top four below,
+            for the full three-option win-probability breakdown.
           </p>
         </div>
       </div>

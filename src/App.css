@@ -66,10 +66,55 @@ body {
   max-width: 1440px;
   width: 100%;
   margin: 0 auto;
-  padding: 20px 32px 60px;
+  padding: 16px 32px 48px;
   display: flex;
   flex-direction: column;
+  gap: 16px;
+}
+
+.alert-text { color: var(--alert); }
+
+/* ---------- Field section (floating, no panel box) ------------------ */
+.field-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.field-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 20px;
+  padding: 4px 8px 12px;
+  flex-wrap: wrap;
+}
+.field-title-group { min-width: 0; }
+.field-title {
+  font-family: var(--serif);
+  font-variation-settings: "opsz" 144, "wght" 500, "SOFT" 40;
+  font-size: 22px;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  margin: 0 0 4px;
+  line-height: 1.1;
+}
+.field-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.45;
+}
+.field-sub strong { font-weight: 700; color: var(--text); }
+
+.field-wrap {
+  position: relative;
+  width: 100%;
+}
+.field-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
 }
 
 /* ---------- Masthead (compact hero, absorbs KPI) --------------------- */
@@ -229,31 +274,6 @@ body {
 }
 .filter-btn.active .n { background: rgba(0,0,0,0.25); color: #ffffff; }
 
-/* ---------- Football field (hero) ------------------------------------ */
-.field-panel { padding: 0; }
-.field-wrap { position: relative; }
-.field-svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-height: 620px;
-}
-.field-legend {
-  padding: 14px 22px 18px;
-  display: flex;
-  gap: 22px 30px;
-  flex-wrap: wrap;
-  font-size: 12px;
-  color: var(--text-2);
-  border-top: 1px solid var(--rule);
-}
-.field-legend .lg-item { display: inline-flex; align-items: center; gap: 8px; }
-.field-legend .lg-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
-.field-legend .lg-dot.alert { background: var(--alert); box-shadow: 0 0 10px var(--alert-glow); }
-.field-legend .lg-dot.silver { background: var(--silver-hi); }
-.field-legend .lg-dot.dim { background: var(--text-3); }
-.field-legend .spacer { flex: 1; min-width: 20px; }
-
 /* ---------- Detail panel --------------------------------------------- */
 .dp-shell { display: flex; flex-direction: column; }
 
@@ -266,9 +286,9 @@ body {
   margin-bottom: 6px;
 }
 
-/* --- Empty state (top-6 misses, horizontal grid) --- */
-.dp-empty { padding: 22px 22px 24px; }
-.dp-empty-head { margin-bottom: 18px; }
+/* --- Empty state (top misses, horizontal grid) --- */
+.dp-empty { padding: 18px 20px 20px; }
+.dp-empty-head { margin-bottom: 14px; }
 .dp-empty-sub {
   font-size: 14px;
   line-height: 1.6;
@@ -280,15 +300,15 @@ body {
 
 .dp-top-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
 }
 .dp-top-card {
   appearance: none;
   border: 1px solid var(--rule);
   background: linear-gradient(180deg, rgba(255,136,71,0.04) 0%, rgba(20, 27, 45, 0.4) 100%);
   border-radius: 10px;
-  padding: 16px 18px 14px;
+  padding: 14px 16px 12px;
   text-align: left;
   color: var(--text);
   cursor: pointer;
