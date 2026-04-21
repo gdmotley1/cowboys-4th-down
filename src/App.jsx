@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import Masthead from "./components/Masthead.jsx";
-import KpiHeadline from "./components/KpiHeadline.jsx";
 import FootballField from "./components/FootballField.jsx";
 import DecisionGrid from "./components/DecisionGrid.jsx";
 import DetailPanel from "./components/DetailPanel.jsx";
@@ -9,7 +8,7 @@ import playsData from "./data/fourth_down_data.json";
 import summary from "./data/summary_stats.json";
 
 export default function App() {
-  const [filter, setFilter] = useState("all"); // all | misses | correct
+  const [filter, setFilter] = useState("all");
   const [selectedPlayId, setSelectedPlayId] = useState(null);
   const [selectedCellKey, setSelectedCellKey] = useState(null);
 
@@ -28,6 +27,14 @@ export default function App() {
     if (!play) return setSelectedPlayId(null);
     setSelectedPlayId((curr) => (curr === play.play_id ? null : play.play_id));
     setSelectedCellKey(null);
+    // Smoothly reveal the detail panel below the field
+    requestAnimationFrame(() => {
+      const el = document.getElementById("detail");
+      if (el) {
+        const y = el.getBoundingClientRect().top + window.scrollY - 80;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
+    });
   };
 
   const handleCellClick = (cellKey, playsInCell) => {
@@ -47,70 +54,76 @@ export default function App() {
       <Masthead summary={summary} />
 
       <main className="app-body">
-        <KpiHeadline summary={summary} />
-
-        <div className="workspace">
-          <div className="workspace-left">
-            <div className="panel">
-              <div className="panel-head">
-                <h3>Decision landscape</h3>
-                <div className="filters">
-                  <button
-                    className={`filter-btn${filter === "all" ? " active" : ""}`}
-                    onClick={() => setFilter("all")}
-                    type="button"
-                  >
-                    All<span className="n num">{counts.all}</span>
-                  </button>
-                  <button
-                    className={`filter-btn${filter === "misses" ? " active" : ""}`}
-                    onClick={() => setFilter("misses")}
-                    type="button"
-                  >
-                    Misses<span className="n num">{counts.misses}</span>
-                  </button>
-                  <button
-                    className={`filter-btn${filter === "correct" ? " active" : ""}`}
-                    onClick={() => setFilter("correct")}
-                    type="button"
-                  >
-                    Matched<span className="n num">{counts.correct}</span>
-                  </button>
-                </div>
+        {/* HERO: football field, full-width */}
+        <section className="panel field-panel">
+          <div className="panel-head">
+            <div>
+              <h3>Decision landscape · Cowboys 2025</h3>
+              <div className="panel-sub">
+                Every 4th-down call the team faced, plotted on the field. Larger
+                marker = higher stakes. Amber = model disagreed.
               </div>
-              <FootballField
-                plays={playsData}
-                filter={filter}
-                selectedPlayId={selectedPlayId}
-                onSelect={handlePlayClick}
-              />
             </div>
+            <div className="filters">
+              <button
+                className={`filter-btn${filter === "all" ? " active" : ""}`}
+                onClick={() => setFilter("all")}
+                type="button"
+              >
+                All<span className="n num">{counts.all}</span>
+              </button>
+              <button
+                className={`filter-btn${filter === "misses" ? " active" : ""}`}
+                onClick={() => setFilter("misses")}
+                type="button"
+              >
+                Misses<span className="n num">{counts.misses}</span>
+              </button>
+              <button
+                className={`filter-btn${filter === "correct" ? " active" : ""}`}
+                onClick={() => setFilter("correct")}
+                type="button"
+              >
+                Matched<span className="n num">{counts.correct}</span>
+              </button>
+            </div>
+          </div>
+          <FootballField
+            plays={playsData}
+            filter={filter}
+            selectedPlayId={selectedPlayId}
+            onSelect={handlePlayClick}
+          />
+        </section>
 
-            <div className="panel">
-              <div className="panel-head">
-                <h3>Cost by situation</h3>
-                <span className="muted">
-                  Distance × field zone — brighter = more WP surrendered
-                </span>
-              </div>
-              <div className="panel-body">
-                <DecisionGrid
-                  plays={playsData}
-                  selectedCellKey={selectedCellKey}
-                  onCellSelect={handleCellClick}
-                />
+        {/* Detail panel — full width, directly below field */}
+        <div id="detail">
+          <DetailPanel
+            play={selectedPlay}
+            allPlays={playsData}
+            onSelect={handlePlayClick}
+          />
+        </div>
+
+        {/* Decision grid — dig deeper */}
+        <section className="panel">
+          <div className="panel-head">
+            <div>
+              <h3>Cost by situation</h3>
+              <div className="panel-sub">
+                Distance × field zone. Brighter = more WP surrendered. Click any
+                cell to drill into its worst miss.
               </div>
             </div>
           </div>
-
-          <aside className="workspace-right">
-            <DetailPanel
-              play={selectedPlay}
-              allPlays={playsData}
-              onSelect={handlePlayClick}
+          <div className="panel-body">
+            <DecisionGrid
+              plays={playsData}
+              selectedCellKey={selectedCellKey}
+              onCellSelect={handleCellClick}
             />
-          </aside>
-        </div>
+          </div>
+        </section>
       </main>
 
       <footer className="foot">

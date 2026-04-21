@@ -11,7 +11,7 @@ const TEAM_NAMES = {
   SF: "49ers", TB: "Buccaneers", TEN: "Titans", WAS: "Commanders",
 };
 
-const CHOICE_LABEL = {
+const CHOICE = {
   went_for_it: "Went for it",
   punted: "Punted",
   field_goal: "Kicked FG",
@@ -25,8 +25,8 @@ function fieldPos(y) {
 }
 function fieldPosFull(y) {
   if (y === 50) return "midfield";
-  if (y < 50) return `the opponent's ${y}-yard line`;
-  return `the Cowboys' ${100 - y}-yard line`;
+  if (y < 50) return `opponent's ${y}-yard line`;
+  return `own ${100 - y}-yard line`;
 }
 function scoreTxt(d) {
   if (d === 0) return "tied";
@@ -44,49 +44,70 @@ function pct(v) {
 }
 
 function EmptyState({ plays, onSelect }) {
-  const ranked = useMemo(() => {
+  const top = useMemo(() => {
     return plays
       .filter((p) => p.correct === false && p.go_boost != null)
       .slice()
-      .sort((a, b) => Math.abs(b.go_boost) - Math.abs(a.go_boost));
+      .sort((a, b) => Math.abs(b.go_boost) - Math.abs(a.go_boost))
+      .slice(0, 6);
   }, [plays]);
 
   return (
-    <div className="detail-empty">
-      <div className="lead">
-        <strong>Every 2025 missed opportunity, ranked.</strong> Click any play
-        (here or on the field) to see the full three-option win-probability
-        breakdown.
+    <div className="dp-empty">
+      <div className="dp-empty-head">
+        <div>
+          <div className="dp-kicker">The six worst calls of the season</div>
+          <p className="dp-empty-sub">
+            Dallas's {plays.filter((p) => p.correct === false).length} missed
+            opportunities surrendered{" "}
+            <strong className="num">
+              {plays
+                .filter((p) => p.correct === false && p.go_boost != null)
+                .reduce((s, p) => s + Math.abs(p.go_boost), 0)
+                .toFixed(1)}{" "}
+              WP points
+            </strong>
+            . The biggest six are below. Click any card — or any play on the
+            field above — for the full three-option breakdown.
+          </p>
+        </div>
       </div>
-      <ul className="miss-list">
-        {ranked.map((p, i) => {
+      <div className="dp-top-grid">
+        {top.map((p, i) => {
           const opp = TEAM_NAMES[p.defteam] || p.defteam;
           const loc = p.posteam === p.home_team ? "vs" : "at";
           return (
-            <li key={`${p.game_id}-${p.play_id}`}>
-              <button
-                className="miss-row"
-                onClick={() => onSelect(p)}
-                type="button"
-              >
-                <span className="rank num">{String(i + 1).padStart(2, "0")}</span>
-                <span className="info">
-                  <span className="where">Wk {p.week} {loc} {opp}</span>
-                  <span className="sit">
-                    Q{p.qtr} · 4th &amp; {p.ydstogo} · {fieldPos(p.yardline_100)} · {CHOICE_LABEL[p.decision]}
-                  </span>
+            <button
+              key={`${p.game_id}-${p.play_id}`}
+              className="dp-top-card"
+              onClick={() => onSelect(p)}
+              type="button"
+            >
+              <div className="dp-top-head">
+                <span className="dp-top-rank num">No. {i + 1}</span>
+                <span className="dp-top-cost num">
+                  +{p.go_boost.toFixed(2)} <span className="unit">WP</span>
                 </span>
-                <span className="cost num">+{p.go_boost.toFixed(2)}</span>
-              </button>
-            </li>
+              </div>
+              <div className="dp-top-matchup">
+                Week {p.week} {loc} {opp}
+              </div>
+              <div className="dp-top-sit">
+                Q{p.qtr} · 4th &amp; {p.ydstogo} · {fieldPos(p.yardline_100)} ·{" "}
+                {scoreTxt(p.score_differential)}
+              </div>
+              <div className="dp-top-verdict">
+                Dallas {CHOICE[p.decision].toLowerCase()} · model said go
+              </div>
+            </button>
           );
         })}
-      </ul>
+      </div>
     </div>
   );
 }
 
-function SelectedPlay({ play }) {
+function SelectedPlay({ play, onClose }) {
   const opp = TEAM_NAMES[play.defteam] || play.defteam;
   const matchup = play.posteam === play.home_team
     ? `${opp} at Cowboys`
@@ -123,106 +144,110 @@ function SelectedPlay({ play }) {
   const correctCall = modelChoice?.chosen;
 
   return (
-    <div className="detail-sel">
-      <div className="detail-ctx">
-        <span className="wk">Week {play.week}</span>
-        <span className="vs">
-          {play.posteam === play.home_team ? "vs " : "at "}{opp}
-        </span>
-      </div>
-      <h3 className="detail-matchup">{matchup}</h3>
-
-      <div className="detail-snap">
-        <div className="cell">
-          <div className="k">Situation</div>
-          <div className="v num">4th &amp; {play.ydstogo}</div>
-        </div>
-        <div className="cell">
-          <div className="k">Ball on</div>
-          <div className="v">{fieldPosFull(play.yardline_100)}</div>
-        </div>
-        <div className="cell">
-          <div className="k">Game state</div>
-          <div className="v">Q{play.qtr} · {timeStr(play.game_seconds_remaining)}</div>
-        </div>
-        <div className="cell">
-          <div className="k">Score</div>
-          <div className="v">
-            Dallas {scoreTxt(play.score_differential)}
+    <div className="dp-selected">
+      <div className="dp-sel-top">
+        <div>
+          <div className="dp-kicker">Play breakdown</div>
+          <h3 className="dp-matchup">{matchup}</h3>
+          <div className="dp-sub">
+            Week {play.week} · Q{play.qtr} · {timeStr(play.game_seconds_remaining)} remaining
           </div>
         </div>
+        <button className="dp-close" onClick={onClose} type="button" aria-label="Deselect play">
+          ✕
+        </button>
       </div>
 
-      {play.desc && <p className="detail-desc">{play.desc}</p>}
-
-      <div className="verdict">
-        <span className="chip navy">
-          <span className="k">Dallas</span> {CHOICE_LABEL[play.decision]}
-        </span>
-        {modelChoice && (
-          <span className="chip alert">
-            <span className="k">Model</span> {modelChoice.name}
-          </span>
-        )}
-        {play.correct === true && (
-          <span className="chip good">
-            <span className="k">Verdict</span> On model
-          </span>
-        )}
-        {play.correct === false && (
-          <span className="chip alert">
-            <span className="k">Verdict</span> Missed opportunity
-          </span>
-        )}
-        {play.go_boost != null && (
-          <span className="chip dim">
-            <span className="k">Go boost</span>
-            <span className="num">
-              {play.go_boost >= 0 ? "+" : ""}{play.go_boost.toFixed(2)} WP
-            </span>
-          </span>
-        )}
-      </div>
-
-      <p className="options-kicker">
-        {correctCall
-          ? "Win probability by option — Dallas chose the best"
-          : "Win probability by option — model's pick in amber"}
-      </p>
-
-      <div className="options-list">
-        {options.map((o) => {
-          const isBest = o.wp != null && o.wp === maxWP;
-          const width = o.wp != null
-            ? (span > 0 ? ((o.wp - minWP) / span) * 100 : 100)
-            : 0;
-          return (
-            <div
-              key={o.id}
-              className={
-                "opt-row" +
-                (isBest ? " is-best" : "") +
-                (o.chosen ? " is-chosen" : "")
-              }
-            >
-              <div className="opt-head">
-                <span className="opt-name">
-                  {o.chosen && <span className="opt-marker" />}
-                  {o.name}
-                </span>
-                <span className="opt-under">
-                  {o.under || (o.wp != null ? "—" : "\u00a0")}
-                </span>
-              </div>
-              <div className="opt-bar">
-                {o.wp != null && <span style={{ width: `${Math.max(5, width)}%` }} />}
-              </div>
-              <div className={`opt-wp serif num${o.wp == null ? " na" : ""}`}>
-                {o.wp != null ? pct(o.wp) : "n/a"}
-              </div>
+      <div className="dp-body">
+        <div className="dp-context">
+          <div className="dp-snap">
+            <div className="dp-cell">
+              <span className="k">Situation</span>
+              <span className="v num">4th &amp; {play.ydstogo}</span>
             </div>
-          );
-        })}
+            <div className="dp-cell">
+              <span className="k">Ball on</span>
+              <span className="v">{fieldPosFull(play.yardline_100)}</span>
+            </div>
+            <div className="dp-cell">
+              <span className="k">Score</span>
+              <span className="v">Dallas {scoreTxt(play.score_differential)}</span>
+            </div>
+            <div className="dp-cell">
+              <span className="k">Go-boost</span>
+              <span className="v num">
+                {play.go_boost != null
+                  ? `${play.go_boost >= 0 ? "+" : ""}${play.go_boost.toFixed(2)} WP`
+                  : "—"}
+              </span>
+            </div>
+          </div>
+
+          {play.desc && <p className="dp-desc">{play.desc}</p>}
+
+          <div className="dp-verdict">
+            <span className="chip navy">
+              <span className="k">Dallas</span> {CHOICE[play.decision]}
+            </span>
+            {modelChoice && (
+              <span className="chip alert">
+                <span className="k">Model</span> {modelChoice.name}
+              </span>
+            )}
+            {play.correct === true && (
+              <span className="chip good">
+                <span className="k">Verdict</span> On model
+              </span>
+            )}
+            {play.correct === false && (
+              <span className="chip alert">
+                <span className="k">Verdict</span> Missed opportunity
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="dp-options">
+          <div className="dp-kicker">
+            {correctCall
+              ? "Win probability by option — Dallas took the best"
+              : "Win probability by option — model's pick in amber"}
+          </div>
+          <div className="options-list">
+            {options.map((o) => {
+              const isBest = o.wp != null && o.wp === maxWP;
+              const width = o.wp != null
+                ? (span > 0 ? ((o.wp - minWP) / span) * 100 : 100)
+                : 0;
+              return (
+                <div
+                  key={o.id}
+                  className={
+                    "opt-row" +
+                    (isBest ? " is-best" : "") +
+                    (o.chosen ? " is-chosen" : "")
+                  }
+                >
+                  <div className="opt-head">
+                    <span className="opt-name">
+                      {o.chosen && <span className="opt-marker" />}
+                      {o.name}
+                    </span>
+                    <span className="opt-under">
+                      {o.under || (o.wp != null ? "—" : "\u00a0")}
+                    </span>
+                  </div>
+                  <div className="opt-bar">
+                    {o.wp != null && <span style={{ width: `${Math.max(5, width)}%` }} />}
+                  </div>
+                  <div className={`opt-wp serif num${o.wp == null ? " na" : ""}`}>
+                    {o.wp != null ? pct(o.wp) : "n/a"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -230,16 +255,10 @@ function SelectedPlay({ play }) {
 
 export default function DetailPanel({ play, allPlays, onSelect }) {
   return (
-    <div className="panel detail-panel">
-      <div className="panel-head">
-        <h3>{play ? "Play breakdown" : "Missed opportunities"}</h3>
-        <span className="muted">
-          {play ? `Play ${play.play_id}` : `${allPlays.filter(p => p.correct === false).length} ranked by WP cost`}
-        </span>
-      </div>
+    <section className="panel dp-shell">
       {play
-        ? <SelectedPlay play={play} />
+        ? <SelectedPlay play={play} onClose={() => onSelect(null)} />
         : <EmptyState plays={allPlays} onSelect={onSelect} />}
-    </div>
+    </section>
   );
 }
