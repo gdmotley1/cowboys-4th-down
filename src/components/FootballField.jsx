@@ -339,7 +339,6 @@ export default function FootballField({ plays, filter, selectedPlayId, onSelect 
                 onMouseLeave={() => setHover((h) => (h === m.p ? null : h))}
                 onClick={() => onSelect && onSelect(m.p)}
                 style={{ cursor: "pointer" }}
-                filter={m.isSelected ? "url(#selectGlow)" : undefined}
               >
                 {/* Soft outer ring — adds halo + lift */}
                 {m.alert && !m.dim && (
@@ -351,7 +350,7 @@ export default function FootballField({ plays, filter, selectedPlayId, onSelect 
                   />
                 )}
 
-                {/* Selection ring in Cowboys gold */}
+                {/* Selection ring in Cowboys gold — glow applied only here */}
                 {m.isSelected && (
                   <circle
                     cx={m.cx} cy={m.cy} r={m.r + 8}
@@ -359,6 +358,7 @@ export default function FootballField({ plays, filter, selectedPlayId, onSelect 
                     stroke="#f5b041"
                     strokeWidth="2"
                     opacity="0.95"
+                    filter="url(#selectGlow)"
                   />
                 )}
 

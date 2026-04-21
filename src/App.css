@@ -109,13 +109,13 @@ body {
 .field-wrap {
   position: relative;
   width: 100%;
+  max-width: 900px;     /* caps width so height auto-stays ~405px */
+  margin: 0 auto;
 }
 .field-svg {
   display: block;
   width: 100%;
-  height: auto;
-  max-height: 460px;
-  margin: 0 auto;
+  height: auto;         /* viewBox aspect drives height */
 }
 
 /* ---------- Masthead (compact hero, absorbs KPI) --------------------- */
@@ -131,10 +131,10 @@ body {
 .masthead-row {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 14px 32px;
+  padding: 10px 32px;
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 24px;
   flex-wrap: wrap;
 }
 .mark { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -168,10 +168,10 @@ body {
 .ms-stat {
   display: flex;
   flex-direction: column;
-  padding: 8px 18px;
+  padding: 6px 16px;
   border-right: 1px solid var(--rule);
   gap: 2px;
-  min-width: 118px;
+  min-width: 110px;
 }
 .ms-stat:last-child { border-right: none; }
 .ms-k {
@@ -380,14 +380,14 @@ body {
 }
 
 /* --- Selected state --- */
-.dp-selected { padding: 22px; }
+.dp-selected { padding: 18px 22px 22px; }
 .dp-sel-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
-  padding-bottom: 18px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--rule);
 }
 .dp-matchup {
