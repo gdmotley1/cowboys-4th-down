@@ -3,30 +3,32 @@ import Masthead from "./components/Masthead.jsx";
 import FootballField from "./components/FootballField.jsx";
 import DecisionGrid from "./components/DecisionGrid.jsx";
 import DetailPanel from "./components/DetailPanel.jsx";
+import KpiHeadline from "./components/KpiHeadline.jsx";
+import {
+  DECISION_VIEWS,
+  getViewCounts,
+  playKey,
+} from "./lib/decisionFilters.js";
 
 import playsData from "./data/fourth_down_data.json";
 import summary from "./data/summary_stats.json";
 
 export default function App() {
-  // Field starts focused on misses — that IS the story.
   const [filter, setFilter] = useState("misses");
-  const [selectedPlayId, setSelectedPlayId] = useState(null);
+  const [selectedPlayKey, setSelectedPlayKey] = useState(null);
   const [selectedCellKey, setSelectedCellKey] = useState(null);
 
-  const counts = useMemo(() => ({
-    all: playsData.length,
-    misses: playsData.filter((p) => p.correct === false).length,
-    matched: playsData.filter((p) => p.correct === true).length,
-  }), []);
+  const counts = useMemo(() => getViewCounts(playsData), []);
 
   const selectedPlay = useMemo(
-    () => playsData.find((p) => p.play_id === selectedPlayId) || null,
-    [selectedPlayId]
+    () => playsData.find((p) => playKey(p) === selectedPlayKey) || null,
+    [selectedPlayKey]
   );
 
   const handlePlayClick = (play) => {
-    if (!play) return setSelectedPlayId(null);
-    setSelectedPlayId((curr) => (curr === play.play_id ? null : play.play_id));
+    if (!play) return setSelectedPlayKey(null);
+    const key = playKey(play);
+    setSelectedPlayKey((curr) => (curr === key ? null : key));
     setSelectedCellKey(null);
   };
 
@@ -39,66 +41,49 @@ export default function App() {
     const pick = (misses.length ? misses : playsInCell).slice().sort(
       (a, b) => Math.abs(b.go_boost ?? 0) - Math.abs(a.go_boost ?? 0)
     )[0];
-    setSelectedPlayId(pick.play_id);
+    setSelectedPlayKey(playKey(pick));
   };
+
+  const activeView = DECISION_VIEWS.find((view) => view.key === filter);
 
   return (
     <div className="app">
       <Masthead summary={summary} />
 
       <main className="app-body">
-        {/* FIELD — floating, no panel box, just a header strip + SVG */}
+        <KpiHeadline summary={summary} plays={playsData} />
+
         <section className="field-section">
           <div className="field-header">
             <div className="field-title-group">
               <h2 className="field-title">Decision landscape</h2>
               <p className="field-sub">
-                {filter === "misses" && (
-                  <>
-                    <strong className="alert-text num">{counts.misses}</strong> missed opportunities, plotted by yards-to-go and field position. Larger marker = higher stakes.
-                  </>
-                )}
-                {filter === "matched" && (
-                  <>
-                    <strong className="num">{counts.matched}</strong> calls that matched the model, for context.
-                  </>
-                )}
-                {filter === "all" && (
-                  <>
-                    All <strong className="num">{counts.all}</strong> decisions — misses in amber, matched calls in silver.
-                  </>
-                )}
+                <strong className={["misses", "conservative", "aggressive"].includes(filter) ? "alert-text num" : "num"}>
+                  {counts[filter]}
+                </strong>{" "}
+                {activeView?.short.toLowerCase()}, plotted by field position and yards to go.
+                Marker size tracks model edge.
               </p>
             </div>
-            <div className="filters">
-              <button
-                className={`filter-btn${filter === "misses" ? " active" : ""}`}
-                onClick={() => setFilter("misses")}
-                type="button"
-              >
-                Misses<span className="n num">{counts.misses}</span>
-              </button>
-              <button
-                className={`filter-btn${filter === "matched" ? " active" : ""}`}
-                onClick={() => setFilter("matched")}
-                type="button"
-              >
-                Matched<span className="n num">{counts.matched}</span>
-              </button>
-              <button
-                className={`filter-btn${filter === "all" ? " active" : ""}`}
-                onClick={() => setFilter("all")}
-                type="button"
-              >
-                All<span className="n num">{counts.all}</span>
-              </button>
+            <div className="filters" aria-label="Decision view">
+              {DECISION_VIEWS.map((view) => (
+                <button
+                  key={view.key}
+                  className={`filter-btn${filter === view.key ? " active" : ""}`}
+                  onClick={() => setFilter(view.key)}
+                  aria-label={`${view.label}: ${counts[view.key]} plays`}
+                  type="button"
+                >
+                  {view.label}<span className="n num">{counts[view.key]}</span>
+                </button>
+              ))}
             </div>
           </div>
 
           <FootballField
             plays={playsData}
             filter={filter}
-            selectedPlayId={selectedPlayId}
+            selectedPlayKey={selectedPlayKey}
             onSelect={handlePlayClick}
           />
         </section>
@@ -114,12 +99,12 @@ export default function App() {
             <div>
               <h3>Cost by situation</h3>
               <div className="panel-sub">
-                Distance × field zone. Brighter = more WP surrendered. Click any
-                cell to drill into its worst miss.
+                Distance by field zone. Brighter cells contain more win probability
+                surrendered by missed calls.
               </div>
             </div>
           </div>
-          <div className="panel-body">
+          <div className="panel-body grid-scroll">
             <DecisionGrid
               plays={playsData}
               selectedCellKey={selectedCellKey}
@@ -131,7 +116,8 @@ export default function App() {
 
       <footer className="foot">
         <span>
-          <strong>Data</strong> nflfastR · 2025 regular season · 17 GP · 113 plays · 107 scored
+          <strong>Data</strong> nflfastR · {summary.season} regular season ·{" "}
+          {summary.total_plays} plays · {summary.total_decisions} scored
         </span>
         <span>
           <strong>Model</strong> nfl4th v1.0.7 (Ben Baldwin) ·{" "}

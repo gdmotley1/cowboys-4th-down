@@ -64,6 +64,9 @@ export default function DecisionGrid({ plays, selectedCellKey, onCellSelect }) {
             const bg = heat > 0
               ? `linear-gradient(180deg, rgba(255, 136, 71, ${0.06 + heat * 0.28}) 0%, rgba(255, 136, 71, ${0.02 + heat * 0.12}) 100%)`
               : "rgba(255, 255, 255, 0.015)";
+            const label = `${cell.matched.length} plays, ${row.label}, ${zone.label}${
+              cell.cost > 0 ? `, +${cell.cost.toFixed(1)} WP cost` : ""
+            }`;
             return (
               <button
                 key={key}
@@ -76,10 +79,9 @@ export default function DecisionGrid({ plays, selectedCellKey, onCellSelect }) {
                 style={{ background: bg }}
                 onClick={() => !empty && onCellSelect && onCellSelect(key, cell.matched)}
                 disabled={empty}
+                aria-label={empty ? `No plays, ${row.label}, ${zone.label}` : label}
                 type="button"
-                title={`${cell.matched.length} plays · ${row.label} · ${zone.label}${
-                  cell.cost > 0 ? ` · +${cell.cost.toFixed(1)} WP cost` : ""
-                }`}
+                title={label}
               >
                 <div className="cell-count num">
                   {empty ? "—" : cell.matched.length}

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { isMiss, sortByCostDesc } from "../lib/decisionFilters.js";
 
 const TEAM_NAMES = {
   ARI: "Cardinals", ATL: "Falcons", BAL: "Ravens", BUF: "Bills",
@@ -46,9 +47,9 @@ function pct(v) {
 function EmptyState({ plays, onSelect }) {
   const top = useMemo(() => {
     return plays
-      .filter((p) => p.correct === false && p.go_boost != null)
+      .filter(isMiss)
       .slice()
-      .sort((a, b) => Math.abs(b.go_boost) - Math.abs(a.go_boost))
+      .sort(sortByCostDesc)
       .slice(0, 4);
   }, [plays]);
 
@@ -58,8 +59,8 @@ function EmptyState({ plays, onSelect }) {
         <div>
           <div className="dp-kicker">The worst calls of the season</div>
           <p className="dp-empty-sub">
-            Click any miss on the field above, or one of the top four below,
-            for the full three-option win-probability breakdown.
+            Ranked by model edge, with matchup, context, and the three-option
+            win-probability breakdown.
           </p>
         </div>
       </div>

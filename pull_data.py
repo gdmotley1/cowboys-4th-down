@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pandas as pd
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).resolve().parent
 CSV_IN = ROOT / "data" / "dal_4th_raw.csv"
 OUT_PLAYS = ROOT / "src" / "data" / "fourth_down_data.json"
 OUT_SUMMARY = ROOT / "src" / "data" / "summary_stats.json"
@@ -230,8 +230,8 @@ def main() -> None:
         })
 
     OUT_PLAYS.parent.mkdir(parents=True, exist_ok=True)
-    OUT_PLAYS.write_text(json.dumps(plays, indent=2))
-    OUT_SUMMARY.write_text(json.dumps(summary, indent=2))
+    OUT_PLAYS.write_text(json.dumps(plays, indent=2), encoding="utf-8")
+    OUT_SUMMARY.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(f"\nWrote {OUT_PLAYS.relative_to(ROOT)} ({len(plays)} plays)")
     print(f"Wrote {OUT_SUMMARY.relative_to(ROOT)}")
 

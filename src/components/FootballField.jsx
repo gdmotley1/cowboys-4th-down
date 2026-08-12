@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { isVisibleForView, playKey } from "../lib/decisionFilters.js";
 
 /**
  * Floating, transparent-turf, proper-proportions football field.
@@ -24,20 +25,12 @@ function yFromDistance(d) {
   const c = Math.max(1, Math.min(22, d));
   return 485 - (c - 1) * (400 / 21);
 }
-function isoKey(p) { return `${p.game_id}::${p.play_id}`; }
-
 function radiusFromStakes(gb) {
   const m = Math.abs(gb ?? 0);
   if (m >= 3)   return 14;
   if (m >= 2)   return 11;
   if (m >= 1)   return 9;
   return 7;
-}
-
-function playVisible(play, filter) {
-  if (filter === "misses") return play.correct === false;
-  if (filter === "matched") return play.correct === true;
-  return true;
 }
 
 /** Deterministic rosette layout for plays that share the same bucket. */
@@ -111,7 +104,20 @@ function YardNumber({ x, y, number, side, rotate180 = false }) {
   );
 }
 
-export default function FootballField({ plays, filter, selectedPlayId, onSelect }) {
+function markerAriaLabel(play, rank) {
+  const opp = TEAM_SHORT[play.defteam] || play.defteam;
+  const score = play.score_differential === 0
+    ? "tied"
+    : play.score_differential > 0
+      ? `leading by ${play.score_differential}`
+      : `trailing by ${-play.score_differential}`;
+  const cost = play.go_boost != null
+    ? `${play.go_boost >= 0 ? "plus " : "minus "}${Math.abs(play.go_boost).toFixed(2)} win-probability points`
+    : "unscored";
+  return `${rank ? `Rank ${rank}. ` : ""}Week ${play.week} ${play.posteam === play.home_team ? "versus" : "at"} ${opp}. Fourth and ${play.ydstogo}. ${score}. ${cost}.`;
+}
+
+export default function FootballField({ plays, filter, selectedPlayKey, onSelect }) {
   const [hover, setHover] = useState(null);
 
   // Rank ALL misses by |go_boost| so we can number the top 6 on the field.
@@ -121,14 +127,14 @@ export default function FootballField({ plays, filter, selectedPlayId, onSelect 
       .slice()
       .sort((a, b) => Math.abs(b.go_boost) - Math.abs(a.go_boost));
     const map = {};
-    misses.forEach((p, i) => { map[isoKey(p)] = i + 1; });
+    misses.forEach((p, i) => { map[playKey(p)] = i + 1; });
     return map;
   }, [plays]);
 
   // Group visible plays by (yardline_100, ydstogo) bucket; biggest stakes
   // render on top (last → above) so numbered markers are never hidden.
   const markers = useMemo(() => {
-    const visible = plays.filter((p) => playVisible(p, filter));
+    const visible = plays.filter((p) => isVisibleForView(p, filter));
     const buckets = {};
     for (const p of visible) {
       const k = `${p.yardline_100}:${p.ydstogo}`;
@@ -150,20 +156,20 @@ export default function FootballField({ plays, filter, selectedPlayId, onSelect 
         const isMiss = p.correct === false;
         const isNeutral = p.correct === null;
         out.push({
-          key: isoKey(p),
+          key: playKey(p),
           p,
           cx: bx + o.dx,
           cy: by + o.dy,
           r,
           alert: isMiss,
           dim: isNeutral,
-          isSelected: p.play_id === selectedPlayId,
-          rank: isMiss ? rankById[isoKey(p)] : null,
+          isSelected: playKey(p) === selectedPlayKey,
+          rank: isMiss ? rankById[playKey(p)] : null,
         });
       });
     }
     return out;
-  }, [plays, filter, selectedPlayId, rankById]);
+  }, [plays, filter, selectedPlayKey, rankById]);
 
   const YL_DEF = [
     { x: 200, n: 10, side: "left" },
@@ -319,6 +325,50 @@ export default function FootballField({ plays, filter, selectedPlayId, onSelect 
           );
         })}
 
+        {/* Distance axis */}
+        <g pointerEvents="none">
+          <line
+            x1="128"
+            y1={yFromDistance(22)}
+            x2="128"
+            y2={yFromDistance(1)}
+            stroke="rgba(255,255,255,0.16)"
+            strokeWidth="1"
+          />
+          {[1, 3, 5, 10, 15, 20].map((d) => {
+            const y = yFromDistance(d);
+            return (
+              <g key={`dist-${d}`}>
+                <line x1="122" y1={y} x2="134" y2={y} stroke="rgba(255,255,255,0.16)" strokeWidth="1" />
+                <text
+                  x="116"
+                  y={y + 4}
+                  textAnchor="end"
+                  fill="rgba(255,255,255,0.34)"
+                  fontFamily="Manrope, sans-serif"
+                  fontSize="12"
+                  fontWeight="700"
+                >
+                  {d}
+                </text>
+              </g>
+            );
+          })}
+          <text
+            x="118"
+            y="272"
+            textAnchor="middle"
+            fill="rgba(255,255,255,0.28)"
+            fontFamily="Manrope, sans-serif"
+            fontSize="11"
+            fontWeight="800"
+            letterSpacing="1.4"
+            transform="rotate(-90 118 272)"
+          >
+            YARDS TO GO
+          </text>
+        </g>
+
         {/* Markers — premium treatment */}
         {markers
           .slice()
@@ -332,14 +382,32 @@ export default function FootballField({ plays, filter, selectedPlayId, onSelect 
             const gradId = m.alert ? "missGrad" : m.dim ? "dimGrad" : "silverGrad";
             const stroke = m.alert ? "#ffcfa6" : m.dim ? "#5b6472" : "#ffffff";
             const showRank = m.alert && m.rank != null && m.rank <= 6;
+            const ariaLabel = markerAriaLabel(m.p, showRank ? m.rank : null);
             return (
               <g
                 key={m.key}
+                role="button"
+                tabIndex="0"
+                focusable="true"
+                aria-label={ariaLabel}
                 onMouseEnter={() => setHover(m.p)}
                 onMouseLeave={() => setHover((h) => (h === m.p ? null : h))}
+                onFocus={() => setHover(m.p)}
+                onBlur={() => setHover((h) => (h === m.p ? null : h))}
                 onClick={() => onSelect && onSelect(m.p)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelect && onSelect(m.p);
+                  }
+                }}
                 style={{ cursor: "pointer" }}
               >
+                <circle
+                  cx={m.cx} cy={m.cy} r={Math.max(18, m.r + 6)}
+                  fill="transparent"
+                />
+
                 {/* Soft outer ring — adds halo + lift */}
                 {m.alert && !m.dim && (
                   <circle
@@ -383,7 +451,7 @@ export default function FootballField({ plays, filter, selectedPlayId, onSelect 
                     fontSize={Math.max(10, m.r * 0.95)}
                     fontWeight="800"
                     fontFamily="Manrope, sans-serif"
-                    style={{ pointerEvents: "none", letterSpacing: "-0.02em" }}
+                    style={{ pointerEvents: "none", letterSpacing: 0 }}
                   >
                     {m.rank}
                   </text>
@@ -407,7 +475,7 @@ export default function FootballField({ plays, filter, selectedPlayId, onSelect 
             : hover.score_differential > 0 ? `up ${hover.score_differential}` : `down ${-hover.score_differential}`;
           const isMiss = hover.correct === false;
           const accent = isMiss ? "#ff8847" : "#d0d6dc";
-          const rank = isMiss ? rankById[isoKey(hover)] : null;
+          const rank = isMiss ? rankById[playKey(hover)] : null;
           return (
             <g pointerEvents="none">
               <rect x={boxX} y={boxY} width={boxW} height={boxH} rx="8" ry="8"
@@ -429,8 +497,8 @@ export default function FootballField({ plays, filter, selectedPlayId, onSelect 
                 fontFamily="Manrope, sans-serif" fontSize="11" fontWeight="700"
                 letterSpacing="0.04em">
                 {hover.go_boost != null
-                  ? `${hover.go_boost >= 0 ? "+" : ""}${hover.go_boost.toFixed(2)} WP · click to drill`
-                  : "unscored — click to view"}
+                  ? `${hover.go_boost >= 0 ? "+" : ""}${hover.go_boost.toFixed(2)} WP model edge`
+                  : "unscored play"}
               </text>
             </g>
           );

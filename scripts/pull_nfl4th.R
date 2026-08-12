@@ -4,13 +4,22 @@
 
 suppressPackageStartupMessages({
   userlib <- Sys.getenv("R_LIBS_USER")
-  .libPaths(c(userlib, .libPaths()))
+  if (nzchar(userlib)) .libPaths(c(userlib, .libPaths()))
   library(nflreadr)
   library(nfl4th)
   library(dplyr)
 })
 
-out_dir <- "C:/Users/motle/claude-code/cowboys-4th-down/data"
+args <- commandArgs(trailingOnly = FALSE)
+file_arg <- "--file="
+script_arg <- args[startsWith(args, file_arg)]
+script_path <- if (length(script_arg)) {
+  normalizePath(sub(file_arg, "", script_arg[[1]]), winslash = "/", mustWork = TRUE)
+} else {
+  normalizePath("scripts/pull_nfl4th.R", winslash = "/", mustWork = FALSE)
+}
+root_dir <- normalizePath(file.path(dirname(script_path), ".."), winslash = "/", mustWork = TRUE)
+out_dir <- file.path(root_dir, "data")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 cat("Loading 2025 NFL pbp...\n")

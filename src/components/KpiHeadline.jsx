@@ -1,44 +1,93 @@
-export default function KpiHeadline({ summary }) {
-  const wp = summary.wp_left_on_table;
-  const expectedWins = (wp / 100).toFixed(2);
-  const correctPct = (summary.correct_pct * 100).toFixed(0);
+import { useMemo } from "react";
+import {
+  isConservativeMiss,
+  sortByCostDesc,
+  sumPositiveGoBoost,
+} from "../lib/decisionFilters.js";
+
+function fieldPos(play) {
+  const y = play.yardline_100;
+  if (y === 50) return "midfield";
+  if (y < 50) return `opp ${y}`;
+  return `own ${100 - y}`;
+}
+
+function matchup(play) {
+  return `Week ${play.week} ${play.posteam === play.home_team ? "vs" : "at"} ${play.defteam}`;
+}
+
+export default function KpiHeadline({ summary, plays }) {
+  const story = useMemo(() => {
+    const conservative = plays.filter(isConservativeMiss).sort(sortByCostDesc);
+    const shortYardageNoGos = conservative.filter((p) => p.ydstogo <= 3);
+    const midfieldNoGos = conservative.filter(
+      (p) => p.yardline_100 >= 40 && p.yardline_100 <= 60
+    );
+    return {
+      conservative,
+      shortYardageNoGos,
+      midfieldNoGos,
+      worstConservative: conservative[0],
+      shortYardageCost: sumPositiveGoBoost(shortYardageNoGos),
+      midfieldCost: sumPositiveGoBoost(midfieldNoGos),
+    };
+  }, [plays]);
+
+  const expectedWins = (summary.wp_left_on_table / 100).toFixed(2);
 
   return (
-    <section className="kpi">
-      <div>
-        <div className="kpi-label">Cost of conservative calls · 2025</div>
-        <h1 className="kpi-value serif num">
-          {wp.toFixed(1)}<span className="unit">WP pts</span>
-        </h1>
-        <p className="kpi-blurb">
-          Across <strong className="num">{summary.total_decisions}</strong> analytically-scored 4th-down decisions in 2025,
-          Dallas chose the model-preferred option <strong className="num">{correctPct}%</strong> of the time.
-          The rest — the punts and kicks the model wanted to be go-for-its — surrendered
-          roughly <strong className="num">{expectedWins} expected wins</strong> in a 7-9-1 season.
+    <section className="storyline" aria-label="Season story">
+      <article className="story-card story-card-primary">
+        <div className="story-label">Main finding</div>
+        <div className="story-value-row">
+          <span className="story-value num">{summary.wp_left_on_table.toFixed(1)}</span>
+          <span className="story-unit">WP pts</span>
+        </div>
+        <p>
+          Conservative fourth-down calls surrendered roughly{" "}
+          <strong className="num">{expectedWins}</strong> expected wins.
         </p>
-      </div>
-      <div className="kpi-side">
-        <div className="kpi-metric">
-          <div className="k">Model agreement</div>
-          <div className="v num">{correctPct}%</div>
-          <div className="sub">{summary.correct_count} of {summary.total_decisions}</div>
+      </article>
+
+      <article className="story-card">
+        <div className="story-label">Miss profile</div>
+        <div className="story-value-row">
+          <span className="story-value num">{story.conservative.length}</span>
+          <span className="story-unit">no-gos</span>
         </div>
-        <div className="kpi-metric">
-          <div className="k">Missed opportunities</div>
-          <div className="v num">{summary.incorrect_count}</div>
-          <div className="sub">conservative + overly aggressive</div>
+        <p>
+          {story.shortYardageNoGos.length} came on 4th-and-3 or shorter, worth{" "}
+          <strong className="num">{story.shortYardageCost.toFixed(1)}</strong> WP pts.
+        </p>
+      </article>
+
+      <article className="story-card">
+        <div className="story-label">Field-position band</div>
+        <div className="story-value-row">
+          <span className="story-value num">{story.midfieldNoGos.length}</span>
+          <span className="story-unit">near midfield</span>
         </div>
-        <div className="kpi-metric">
-          <div className="k">Went for it</div>
-          <div className="v num">{summary.went_for_it_count}</div>
-          <div className="sub">{summary.went_for_it_converted} converted</div>
-        </div>
-        <div className="kpi-metric">
-          <div className="k">Kicked or punted</div>
-          <div className="v num">{summary.punted_count + summary.field_goal_count}</div>
-          <div className="sub">{summary.field_goal_count} FG · {summary.punted_count} punt</div>
-        </div>
-      </div>
+        <p>
+          Own 40 through opponent 40 accounted for{" "}
+          <strong className="num">{story.midfieldCost.toFixed(1)}</strong> WP pts.
+        </p>
+      </article>
+
+      {story.worstConservative && (
+        <article className="story-card">
+          <div className="story-label">Sharpest single miss</div>
+          <div className="story-value-row">
+            <span className="story-value num">
+              +{story.worstConservative.go_boost.toFixed(2)}
+            </span>
+            <span className="story-unit">WP</span>
+          </div>
+          <p>
+            {matchup(story.worstConservative)} - 4th &amp;{" "}
+            {story.worstConservative.ydstogo} at {fieldPos(story.worstConservative)}.
+          </p>
+        </article>
+      )}
     </section>
   );
 }
